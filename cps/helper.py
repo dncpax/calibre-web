@@ -39,6 +39,7 @@ from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash
 from markupsafe import escape
 from urllib.parse import quote
+from PIL import Image as ImagePIL
 
 try:
     import unidecode
@@ -574,7 +575,12 @@ def get_book_cover_internal(book, use_generic_cover_on_failure):
         else:
             cover_file_path = os.path.join(config.config_calibre_dir, book.path)
             if os.path.isfile(os.path.join(cover_file_path, "cover.jpg")):
-                return send_from_directory(cover_file_path, "cover.jpg")
+                #return send_from_directory(cover_file_path, "cover.jpg")
+                if not os.path.isfile(os.path.join(cover_file_path, "cover_thumb.jpg")):
+                    img = ImagePIL.open(os.path.join(cover_file_path, "cover.jpg"))
+                    resizedImage = img.resize((273,419),resample=ImagePIL.LANCZOS)
+                    resizedImage.save(os.path.join(cover_file_path, "cover_thumb.jpg"))
+                return send_from_directory(cover_file_path, "cover_thumb.jpg")
             else:
                 return get_cover_on_failure(use_generic_cover_on_failure)
     else:
@@ -628,6 +634,15 @@ def save_cover_from_filestorage(filepath, saved_filename, img):
     except (IOError, OSError):
         log.error(u"Cover-file is not a valid image file, or could not be stored")
         return False, _(u"Cover-file is not a valid image file, or could not be stored")
+
+    #thumbs cover
+    if os.path.isfile(os.path.join(filepath, saved_filename)):
+        img_thumb = ImagePIL.open(os.path.join(filepath, saved_filename))
+        resizedImage = img_thumb.resize((273,419),resample=ImagePIL.LANCZOS)
+        stem, ext = os.path.splitext(saved_filename)
+        thumb_filename = os.path.join(stem + "_thumb" + ext)
+        resizedImage.save(os.path.join(filepath, thumb_filename))
+
     return True, None
 
 
